@@ -1,0 +1,13 @@
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: sqlite:////data/kvitto.db
+      WEBHOOK_SECRET: ${WEBHOOK_SECRET:-}
+    volumes:
+      - kvitto-data:/data
+
+volumes:
+  kvitto-data:
