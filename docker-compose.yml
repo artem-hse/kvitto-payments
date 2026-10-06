@@ -5,9 +5,15 @@ services:
       - "8000:8000"
     environment:
       DATABASE_URL: sqlite:////data/kvitto.db
+      # Пусто — проверка подписи выключена. Включить: WEBHOOK_SECRET=s3cret docker compose up
       WEBHOOK_SECRET: ${WEBHOOK_SECRET:-}
     volumes:
       - kvitto-data:/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/tariffs')"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
 
 volumes:
   kvitto-data:

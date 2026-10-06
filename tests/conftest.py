@@ -11,10 +11,17 @@ from app.db import Base, engine  # noqa: E402
 from app.main import app  # noqa: E402
 
 
+def reset_db() -> None:
+    """Пустая база: без таблиц и без отметки о применённых миграциях."""
+    Base.metadata.drop_all(engine)
+    with engine.begin() as conn:
+        conn.exec_driver_sql("DROP TABLE IF EXISTS alembic_version")
+
+
 @pytest.fixture
 def client():
-    # Чистая база на каждый тест; lifespan создаст таблицы и тарифы заново
-    Base.metadata.drop_all(engine)
+    # Чистая база на каждый тест; lifespan прогонит миграции и создаст тарифы заново
+    reset_db()
     with TestClient(app) as c:
         yield c
 

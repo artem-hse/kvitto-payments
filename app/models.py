@@ -1,11 +1,25 @@
-"""ORM-модели. Все денежные поля — целые копейки (BigInteger), никаких float."""
+"""ORM-модели. Все денежные поля — целые копейки (BigInteger), никаких float.
+
+Схема в БД создаётся миграциями Alembic (migrations/), модели — их зеркало.
+"""
 
 from datetime import UTC, datetime
 
-from sqlalchemy import JSON, BigInteger, DateTime, ForeignKey, Integer, String
+from sqlalchemy import (
+    JSON,
+    BigInteger,
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db import Base
+
+# Верхняя граница id: Integer в PostgreSQL — 32 бита. Большие id не могут существовать.
+MAX_DB_ID = 2**31 - 1
 
 
 def utcnow() -> datetime:
@@ -14,6 +28,7 @@ def utcnow() -> datetime:
 
 class Tariff(Base):
     __tablename__ = "tariffs"
+    __table_args__ = (CheckConstraint("price > 0", name="ck_tariffs_price_positive"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     title: Mapped[str] = mapped_column(String(50), unique=True)
@@ -22,6 +37,17 @@ class Tariff(Base):
 
 class Payment(Base):
     __tablename__ = "payments"
+    # Последний рубеж: даже если в коде появится баг, БД не примет отрицательную сумму
+    # или неизвестный статус.
+    __table_args__ = (
+        CheckConstraint("amount >= 0", name="ck_payments_amount_non_negative"),
+        CheckConstraint("discount >= 0", name="ck_payments_discount_non_negative"),
+        CheckConstraint(
+            "status IN ('pending', 'succeeded', 'failed', 'refunded')",
+            name="ck_payments_status",
+        ),
+        CheckConstraint("method IN ('card', 'sbp', 'installment')", name="ck_payments_method"),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     status: Mapped[str] = mapped_column(String(20), default="pending", index=True)

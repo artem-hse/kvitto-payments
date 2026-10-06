@@ -5,12 +5,30 @@ on: [push, pull_request]
 jobs:
   test:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: ${{ matrix.python-version }}
           cache: pip
-      - run: pip install -r requirements.txt
+      - run: pip install -r requirements-dev.txt
       - run: ruff check .
+      - run: ruff format --check .
       - run: pytest -q
+      # Миграции применяются к чистой базе, и модели не разошлись со схемой
+      - run: alembic upgrade head && alembic check
+        env:
+          DATABASE_URL: sqlite:///./ci.db
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and smoke-test the image
+        run: |
+          docker compose up --build --detach --wait
+          curl --fail --silent http://127.0.0.1:8000/tariffs
+          docker compose down

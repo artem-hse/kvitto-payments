@@ -1,13 +1,18 @@
 """Pydantic-схемы запросов и ответов."""
 
 from datetime import UTC, datetime
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, EmailStr, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
 
+from app.models import MAX_DB_ID
 from app.pricing import PaymentStatus, is_known_promo
 
 PaymentMethod = Literal["card", "sbp", "installment"]
+
+# strict: `true` и `2.0` не превращаются молча в 1 и 2.
+# le: число больше колонки Integer дало бы 500 от драйвера БД, а не 422.
+DbId = Annotated[int, Field(strict=True, ge=1, le=MAX_DB_ID)]
 
 
 class TariffOut(BaseModel):
@@ -19,11 +24,20 @@ class TariffOut(BaseModel):
 
 
 class PaymentCreate(BaseModel):
-    tariff_id: int
+    # Лишнее поле (например, "amount") — 422: сумму считает сервер, клиент её не задаёт.
+    model_config = ConfigDict(extra="forbid")
+
+    tariff_id: DbId
     email: EmailStr
     method: PaymentMethod
     installment_months: Literal[3, 6, 12] | None = None
     promo_code: str | None = None
+
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, v: str) -> str:
+        # Один ящик — одна запись: иначе фильтр по email не найдёт Student@... по student@...
+        return v.lower()
 
     @field_validator("promo_code")
     @classmethod
@@ -64,5 +78,6 @@ class PaymentOut(BaseModel):
 
 
 class WebhookIn(BaseModel):
-    payment_id: int
+    # Без ge/le: несуществующий платёж — это 404 по заданию, а не 422
+    payment_id: Annotated[int, Field(strict=True)]
     status: PaymentStatus

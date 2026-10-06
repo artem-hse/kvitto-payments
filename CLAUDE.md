@@ -1,12 +1,13 @@
 # Правила для ИИ-ассистента в этом репозитории
 
 ## Проект
-Сервис приёма оплаты курсов: FastAPI + SQLAlchemy 2.0 (sync) + Pydantic v2, SQLite.
+Сервис приёма оплаты курсов: FastAPI + SQLAlchemy 2.0 (sync) + Pydantic v2 + Alembic, SQLite.
 
 ## Структура
 - `app/pricing.py` — чистая бизнес-логика (скидки, график рассрочки, переходы статусов). Без БД и HTTP.
 - `app/services.py` — операции с БД. Доменные ошибки — исключения, HTTP-коды назначает `main.py`.
 - `app/schemas.py` — Pydantic-схемы, вся валидация входа здесь.
+- `app/models.py` — ORM-модели; схема БД живёт в `migrations/` (Alembic).
 - `app/main.py` — роуты и обработчики исключений.
 
 ## Жёсткие правила
@@ -15,9 +16,13 @@
 - Новый статус-переход добавляется только в `ALLOWED_TRANSITIONS`, а не `if`-ами по коду.
 - Смена статуса — условным `UPDATE ... WHERE status = <old>`, не read-modify-write.
 - Ошибки валидации — стандартные 422 FastAPI, свой формат не изобретать.
+- `services.py` и `pricing.py` не импортируют `fastapi`.
+- Изменил модель — сгенерируй миграцию (`alembic revision --autogenerate`) и проверь её глазами.
+- Ни один вход не должен давать 500: огромные числа, пустые строки, лишние поля — 422 или 404.
 - Любое изменение логики сопровождается тестом, проверяющим данные, а не только код ответа.
 
 ## Команды
 - Тесты: `pytest -q`
-- Линтер: `ruff check .`
+- Линтер: `ruff check . && ruff format --check .`
+- Миграции: `alembic upgrade head`, `alembic check`
 - Запуск: `uvicorn app.main:app --reload`

@@ -3,12 +3,11 @@
 import hashlib
 import json
 
-from fastapi.exceptions import RequestValidationError
 from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.models import Payment, Tariff
+from app.models import MAX_DB_ID, Payment, Tariff
 from app.pricing import TARIFFS_SEED, calc_discount, can_transition, split_schedule
 from app.schemas import PaymentCreate
 
@@ -19,6 +18,12 @@ class IdempotencyConflict(Exception):
 
 class PaymentNotFound(Exception):
     pass
+
+
+class TariffNotFound(Exception):
+    def __init__(self, tariff_id: int) -> None:
+        super().__init__(tariff_id)
+        self.tariff_id = tariff_id
 
 
 class InvalidTransition(Exception):
@@ -63,11 +68,7 @@ def create_payment(
 
     tariff = db.get(Tariff, data.tariff_id)
     if tariff is None:
-        # Тот же формат, что и у стандартной 422 FastAPI
-        raise RequestValidationError(
-            [{"type": "value_error", "loc": ("body", "tariff_id"),
-              "msg": "Unknown tariff", "input": data.tariff_id}]
-        )
+        raise TariffNotFound(data.tariff_id)
 
     discount = calc_discount(tariff.price, data.promo_code)
     amount = tariff.price - discount
@@ -104,19 +105,25 @@ def create_payment(
 
 
 def get_payment(db: Session, payment_id: int) -> Payment:
+    # id вне диапазона колонки не может существовать; без проверки драйвер БД упадёт с 500
+    if not 1 <= payment_id <= MAX_DB_ID:
+        raise PaymentNotFound
     payment = db.get(Payment, payment_id)
     if payment is None:
         raise PaymentNotFound
     return payment
 
 
-def list_payments(db: Session, email: str | None, status: str | None) -> list[Payment]:
-    stmt = select(Payment).order_by(Payment.id)
+def list_payments(
+    db: Session, email: str | None, status: str | None, limit: int, offset: int
+) -> list[Payment]:
+    stmt = select(Payment)
     if email:
-        stmt = stmt.where(Payment.email == email)
+        # email хранится в нижнем регистре (см. PaymentCreate.normalize_email)
+        stmt = stmt.where(Payment.email == email.strip().lower())
     if status:
         stmt = stmt.where(Payment.status == status)
-    return list(db.scalars(stmt))
+    return list(db.scalars(stmt.order_by(Payment.id).limit(limit).offset(offset)))
 
 
 def change_status(db: Session, payment_id: int, new_status: str) -> Payment:
