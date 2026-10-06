@@ -17,7 +17,13 @@ jobs:
       - run: pip install -r requirements-dev.txt
       - run: ruff check .
       - run: ruff format --check .
-      - run: pytest -q
+      - run: pytest -q --junitxml=test-results.xml
+      # Таблица результатов на странице запуска; always() — отчёт нужен и когда тесты упали
+      - name: Test report
+        if: always()
+        run: >-
+          python .github/scripts/test_summary.py test-results.xml
+          "Тесты · Python ${{ matrix.python-version }}" >> "$GITHUB_STEP_SUMMARY"
       # Миграции применяются к чистой базе, и модели не разошлись со схемой
       - run: alembic upgrade head && alembic check
         env:

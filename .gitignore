@@ -8,3 +8,5 @@ venv/
 .env
 .DS_Store
 .claude/worktrees/
+test-results.xml
+ci.db
