@@ -1,5 +1,7 @@
 # Kvitto Payments API
 
+[![CI](https://github.com/artem-hse/kvitto-payments/actions/workflows/ci.yml/badge.svg)](https://github.com/artem-hse/kvitto-payments/actions/workflows/ci.yml)
+
 Сервис приёма оплаты курса для онлайн-школы: тарифы, создание платежа с промокодом и рассрочкой,
 уведомления банка о смене статуса.
 
