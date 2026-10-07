@@ -150,5 +150,5 @@ tests/
 | Подпись вебхука HMAC-SHA256 | `app/main.py: verify_signature`, `hmac.compare_digest` |
 | Миграции Alembic | `migrations/`, применяются при старте; тест на расхождение с моделями |
 | `GET /payments` с фильтрами | `email`, `status` + пагинация `limit`/`offset` |
-| GitHub Actions | ruff, pytest на 3.11 и 3.12, `alembic check`, сборка образа |
+| GitHub Actions | ruff, pytest на 3.11 и 3.12, `alembic check`, сборка образа; бейдж в README и таблица тестов на странице запуска |
 | Правила для ассистента | `CLAUDE.md` |
